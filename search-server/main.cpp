@@ -6,10 +6,13 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+
+const double EPSILON = 1e-6;
 
 string ReadLine() {
     string s;
@@ -76,17 +79,8 @@ public:
     }
 
     vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status = DocumentStatus::ACTUAL) const {
-        switch (status) {
-            case DocumentStatus::ACTUAL:
-                break;
-            case DocumentStatus::BANNED:
-                return FindTopDocuments(raw_query, [](int document_id, const DocumentStatus& status , int rating) {return status == DocumentStatus::BANNED;});
-            case DocumentStatus::IRRELEVANT:
-                return FindTopDocuments(raw_query, [](int document_id, const DocumentStatus& status , int rating) {return status == DocumentStatus::IRRELEVANT;});
-            case DocumentStatus::REMOVED:
-                return FindTopDocuments(raw_query, [](int document_id, const DocumentStatus& status , int rating) {return status == DocumentStatus::REMOVED;});
-        }
-        return FindTopDocuments(raw_query, [](int document_id, const DocumentStatus& status , int rating) {return status == DocumentStatus::ACTUAL;});
+        auto func = [status](int document_id, const DocumentStatus& stat , int rating) {return stat == status;};
+        return FindTopDocuments(raw_query, func);
     }
 
     template <typename Peredicat>
@@ -96,11 +90,10 @@ public:
 
         sort(matched_documents.begin(), matched_documents.end(),
              [](const Document& lhs, const Document& rhs) {
-                 if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                 if (abs(lhs.relevance - rhs.relevance) < EPSILON) {
                      return lhs.rating > rhs.rating;
-                 } else {
-                     return lhs.relevance > rhs.relevance;
                  }
+                 return lhs.relevance > rhs.relevance;
              });
         if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
             matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
@@ -164,10 +157,7 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
         return rating_sum / static_cast<int>(ratings.size());
     }
 
@@ -215,13 +205,15 @@ private:
     template <typename Peredicat>
     vector<Document> FindAllDocuments(const Query& query, Peredicat func) const {
         map<int, double> document_to_relevance;
+
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
             for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
-                if (func(document_id, documents_.at(document_id).status, documents_.at(document_id).rating)) {
+                auto document = documents_.at(document_id);
+                if (func(document_id, document.status, document.rating)) {
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
                 }
             }
