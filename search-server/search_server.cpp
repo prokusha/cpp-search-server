@@ -2,6 +2,12 @@
 
 using namespace std;
 
+SearchServer::SearchServer(const string& stop_words_text) : SearchServer(SplitIntoWords(stop_words_text)) {
+    if(!IsValidWord(stop_words_text)) {
+        throw invalid_argument("This string contains forbidden characters");
+    }
+}
+
 void SearchServer::AddDocument(int document_id, const string& document, DocumentStatus status,
                      const vector<int>& ratings) {
     if(document_id < 0) {

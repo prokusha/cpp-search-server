@@ -1,9 +1,9 @@
+#pragma once
+
 #include <iostream>
 #include <cmath>
 #include <vector>
 #include <string>
-
-#include "document.h"
 
 template <typename It>
 class IteratorRange {
@@ -56,14 +56,6 @@ private:
 template <typename Container>
 auto Paginate(const Container& c, size_t page_size) {
     return Paginator(begin(c), end(c), page_size);
-}
-
-std::ostream& operator<<(std::ostream& out, const Document& document) {
-    out << "{ "
-        << "document_id = " << document.id << ", "
-        << "relevance = " << document.relevance << ", "
-        << "rating = " << document.rating << " }";
-    return out;
 }
 
 template<typename It>
