@@ -1,4 +1,5 @@
 #include "search_server.h"
+#include "paginator.h"
 
 using namespace std;
 
@@ -19,11 +20,12 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
     if(!IsValidWord(document)) {
         throw invalid_argument("This string contains forbidden characters");
     }
-    document_id_.push_back(document_id);
+    document_id_.insert(document_id);
     const vector<string> words = SplitIntoWordsNoStop(document);
     const double inv_word_count = 1.0 / words.size();
     for (const string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
+        document_words_freqs_[document_id][word] += inv_word_count;
     }
     documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
 }
@@ -65,8 +67,23 @@ tuple<vector<string>, DocumentStatus> SearchServer::MatchDocument(const string& 
     return {matched_words, documents_.at(document_id).status};
 }
 
-int SearchServer::GetDocumentId(int index) const {
-    return document_id_.at(index);
+const map<string, double>& SearchServer::GetWordFrequencies(int document_id) const {
+    static const map<string, double> empty;
+    if (!document_words_freqs_.count(document_id)) {
+        return empty;
+    }
+    return document_words_freqs_.at(document_id);
+}
+
+void SearchServer::RemoveDocument(int document_id) {
+    document_id_.erase(document_id);
+    documents_.erase(document_id);
+    for (auto [key, value] : word_to_document_freqs_) {
+        word_to_document_freqs_[key].erase(document_id);
+    }
+    if (document_words_freqs_.count(document_id)) {
+        document_words_freqs_.erase(document_id);
+    }
 }
 
 bool SearchServer::IsValidWord(const string& word) {
