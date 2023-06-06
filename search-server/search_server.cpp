@@ -1,5 +1,6 @@
 #include "search_server.h"
 #include "paginator.h"
+#include <numeric>
 
 using namespace std;
 
@@ -76,12 +77,13 @@ const map<string, double>& SearchServer::GetWordFrequencies(int document_id) con
 }
 
 void SearchServer::RemoveDocument(int document_id) {
-    document_id_.erase(document_id);
-    documents_.erase(document_id);
-    for (auto [key, value] : word_to_document_freqs_) {
-        word_to_document_freqs_[key].erase(document_id);
-    }
-    if (document_words_freqs_.count(document_id)) {
+    const auto it = find(begin(), end(), document_id);
+    if (it != end()) {
+        document_id_.erase(document_id);
+        documents_.erase(document_id);
+        for (auto [key, value] : document_words_freqs_.at(document_id)) {
+            word_to_document_freqs_[key].erase(document_id);
+        }
         document_words_freqs_.erase(document_id);
     }
 }
@@ -111,10 +113,7 @@ int SearchServer::ComputeAverageRating(const vector<int>& ratings) {
     if (ratings.empty()) {
         return 0;
     }
-    int rating_sum = 0;
-    for (const int rating : ratings) {
-        rating_sum += rating;
-    }
+    int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
     return rating_sum / static_cast<int>(ratings.size());
 }
 
